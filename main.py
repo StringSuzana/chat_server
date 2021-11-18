@@ -4,6 +4,28 @@ import select  # OS level IO capability, works with win, linux, ios
 HEADER_LENGTH = 10
 IP = '127.0.0.1'
 PORT = 5555
+UTF_8 = 'utf-8'
+
+
+def make_encoded_message(name, content):
+    name_header = f"{len(str(name)):<{HEADER_LENGTH}}".encode(UTF_8)
+    name_header_data = str(name).encode(UTF_8)
+    content_header = f"{len(str(content)):<{HEADER_LENGTH}}".encode(UTF_8)
+    content_header_data = str(content).encode(UTF_8)
+    return name_header + name_header_data + content_header + content_header_data
+
+
+def send_public_key(client):
+    p = 32
+    g = 5
+
+    p_name = 'p'
+    g_name = 'g'
+    p_message = make_encoded_message(p_name, p)
+    g_message = make_encoded_message(g_name, g)
+
+    client.send(p_message)
+    client.send(g_message)
 
 
 def receive_message(client_socket):
@@ -45,8 +67,11 @@ if __name__ == '__main__':
                 clients[client_socket] = user
                 print(
                     f'Accepted new connection'
-                    f' {client_address[0]} : {client_address[1]} '
+                    f' {client_address[0]}:{client_address[1]} '
                     f'from {user["data"].decode("utf-8")}')
+
+                send_public_key(client_socket)
+
             else:
                 message = receive_message(notif_sock)
                 if message is False:
