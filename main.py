@@ -1,10 +1,44 @@
 import socket
 import select  # OS level IO capability, works with win, linux, ios
+from random import getrandbits
+from random import randint
 
 HEADER_LENGTH = 10
 IP = '127.0.0.1'
 PORT = 5555
 UTF_8 = 'utf-8'
+ASYMMETRIC_ENCRYPTION_HEADER = 'DIFFIEHELLMAN'
+P: int = 0  # p has to be prime nuber = 23
+G: int = 0  # g has to be primitive rood modulo g =5
+
+
+def is_prime(num):
+    if num > 1:
+        for n in range(2, num):
+            if (num % n) == 0:
+                return False
+        return True
+    else:
+        return False
+
+
+def get_random_prime():
+    while True:
+        n = getrandbits(18)
+        if is_prime(n):
+            return n
+
+
+def primitive_root(modulo):
+    required_set = set(num for num in range(1, modulo))
+    for co_prime_of_modulo in range(1, modulo):
+        actual_set = set()
+        for power in range(1, modulo):
+            actual_set.add(pow(co_prime_of_modulo, power, modulo))
+        if required_set == actual_set:
+            return co_prime_of_modulo
+        else:
+            continue
 
 
 def make_encoded_message(name, content):
@@ -15,17 +49,14 @@ def make_encoded_message(name, content):
     return name_header + name_header_data + content_header + content_header_data
 
 
-def send_public_key(client):
-    p = 32
-    g = 5
-
+def send_p_and_g(client):
+    asymmetric_encryption_message = make_encoded_message(ASYMMETRIC_ENCRYPTION_HEADER, ASYMMETRIC_ENCRYPTION_HEADER)
     p_name = 'p'
     g_name = 'g'
-    p_message = make_encoded_message(p_name, p)
-    g_message = make_encoded_message(g_name, g)
+    p_message = make_encoded_message(p_name, P)
+    g_message = make_encoded_message(g_name, G)
 
-    client.send(p_message)
-    client.send(g_message)
+    client.send(asymmetric_encryption_message + p_message + g_message)
 
 
 def receive_message(client_socket):
@@ -41,7 +72,16 @@ def receive_message(client_socket):
         return False
 
 
+def make_and_define_p_and_g():
+    global P
+    P = get_random_prime()
+    global G
+    G = primitive_root(int(P))  # g has to be primitive rood modulo p =5
+    print(f"P: {P}, G: {G}")
+
+
 if __name__ == '__main__':
+    make_and_define_p_and_g()
     # AF Address Family INET internet
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -58,7 +98,6 @@ if __name__ == '__main__':
                                                            sockets_list)  # read_from , write_in, error_on
         for notif_sock in read_sockets:
             if notif_sock == server_socket:
-
                 client_socket, client_address = server_socket.accept()
                 user = receive_message(client_socket)
                 if user is False:
@@ -69,8 +108,12 @@ if __name__ == '__main__':
                     f'Accepted new connection'
                     f' {client_address[0]}:{client_address[1]} '
                     f'from {user["data"].decode("utf-8")}')
+                send_p_and_g(client_socket)
+                if len(clients) == 2:  # Ako su dva covjeka u razgovoru
+                    for c in clients:
+                        if c != notif_sock:
+                            c.send(b'16        pub_key_exchange')
 
-                send_public_key(client_socket)
 
             else:
                 message = receive_message(notif_sock)
@@ -84,11 +127,10 @@ if __name__ == '__main__':
                       f'message: {message["data"].decode("utf-8")}')
                 for client in clients:
                     if client != notif_sock:
-                        # user.header = len(user.data),
-                        # user.data = username,
-                        # message.header = len(message.data),
-                        # message.data = message content
-                        client.send(user["header"] + user["data"] + message["header"] + message["data"])
+                        if message["data"] == 'pub_key':
+                            pass
+                        else:
+                            client.send(user["header"] + user["data"] + message["header"] + message["data"])
 
         for notif_sock in exception_sockets:
             sockets_list.remove(notif_sock)
