@@ -2,6 +2,7 @@ import socket
 import select  # OS level IO capability, works with win, linux, ios
 from random import getrandbits
 from random import randint
+from time import sleep
 
 HEADER_LENGTH = 10
 IP = '127.0.0.1'
@@ -10,6 +11,14 @@ UTF_8 = 'utf-8'
 ASYMMETRIC_ENCRYPTION_HEADER = 'DIFFIEHELLMAN'
 P: int = 0  # p has to be prime nuber = 23
 G: int = 0  # g has to be primitive rood modulo g =5
+
+
+def make_and_define_p_and_g():
+    global P
+    P = get_random_prime()
+    global G
+    G = primitive_root(int(P))  # g has to be primitive rood modulo p =5
+    print(f"P: {P}, G: {G}")
 
 
 def is_prime(num):
@@ -72,15 +81,8 @@ def receive_message(client_socket):
         return False
 
 
-def make_and_define_p_and_g():
-    global P
-    P = get_random_prime()
-    global G
-    G = primitive_root(int(P))  # g has to be primitive rood modulo p =5
-    print(f"P: {P}, G: {G}")
-
-
 if __name__ == '__main__':
+
     make_and_define_p_and_g()
     # AF Address Family INET internet
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -111,8 +113,8 @@ if __name__ == '__main__':
                 send_p_and_g(client_socket)
                 if len(clients) == 2:  # Ako su dva covjeka u razgovoru
                     for c in clients:
-                        if c != notif_sock:
-                            c.send(b'16        pub_key_exchange')
+                        print(f'Send pub_key_exchange flag to clients {clients[c]["data"]}')
+                        c.send(b'16        pub_key_exchange')  # 10 mjesta je header za data '16' + 8x ' '
 
 
             else:
@@ -126,11 +128,10 @@ if __name__ == '__main__':
                 print(f'Received message from {user["data"].decode("utf-8")}, '
                       f'message: {message["data"].decode("utf-8")}')
                 for client in clients:
-                    if client != notif_sock:
-                        if message["data"] == 'pub_key':
-                            pass
-                        else:
-                            client.send(user["header"] + user["data"] + message["header"] + message["data"])
+                    if (client == notif_sock) & (message["data"] == b'pub_key'):
+                        pub_key_message = receive_message(notif_sock)
+                        print(f'{user["header"] + user["data"] + message["header"] + message["data"] +user["header"] + user["data"] + pub_key_message["header"] + pub_key_message["data"]}')
+                        client.send(user["header"] + user["data"] + message["header"] + message["data"] +user["header"] + user["data"] + pub_key_message["header"] + pub_key_message["data"])
 
         for notif_sock in exception_sockets:
             sockets_list.remove(notif_sock)
