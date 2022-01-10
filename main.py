@@ -74,7 +74,7 @@ def receive_message(client_socket):
         if not len(message_header):
             return False
         message_length = int(message_header.decode('utf-8').strip())
-        print(f'message_length {message_length}')
+        # print(f' message_length {message_length}')
         return {"header": message_header,
                 'data': client_socket.recv(message_length)}  # Kaj ako netko posalje jako veliku poruku?
     except:
@@ -109,29 +109,36 @@ if __name__ == '__main__':
                 print(
                     f'Accepted new connection'
                     f' {client_address[0]}:{client_address[1]} '
-                    f'from {user["data"].decode("utf-8")}')
+                    f'from {user["data"].decode(UTF_8)}')
                 send_p_and_g(client_socket)
                 if len(clients) == 2:  # Ako su dva covjeka u razgovoru
                     for c in clients:
-                        print(f'Send pub_key_exchange flag to clients {clients[c]["data"]}')
+                        sleep(1)
+                        print(f'Send pub_key_exchange flag to client {clients[c]["data"].decode(UTF_8)}')
                         c.send(b'16        pub_key_exchange')  # 10 mjesta je header za data '16' + 8x ' '
 
 
             else:
                 message = receive_message(notif_sock)
                 if message is False:
-                    print(f"Closed connection from {clients[notif_sock]['data'].decode('utf-8')}")
+                    print(f"Closed connection from {clients[notif_sock]['data'].decode(UTF_8)}")
                     sockets_list.remove(notif_sock)
                     del clients[notif_sock]
                     continue
                 user = clients[notif_sock]
-                print(f'Received message from {user["data"].decode("utf-8")}, '
-                      f'message: {message["data"].decode("utf-8")}')
+                print(f'Received message from {user["data"].decode(UTF_8)}, '
+                      f'message: {message["data"].decode(UTF_8)}')
                 for client in clients:
-                    if (client == notif_sock) & (message["data"] == b'pub_key'):
+                    if (client != notif_sock) & (message["data"] == b'pub_key'):  # pub key exchange
                         pub_key_message = receive_message(notif_sock)
-                        print(f'{user["header"] + user["data"] + message["header"] + message["data"] +user["header"] + user["data"] + pub_key_message["header"] + pub_key_message["data"]}')
-                        client.send(user["header"] + user["data"] + message["header"] + message["data"] +user["header"] + user["data"] + pub_key_message["header"] + pub_key_message["data"])
+                        print(f'Sending message from {user["data"].decode(UTF_8)}, '
+                              f' flag: {message["data"].decode(UTF_8)}'
+                              f' and public key:  {pub_key_message["data"].decode(UTF_8)}')
+                        client.send(
+                            user["header"] + user["data"] + message["header"] + message["data"] +
+                            user["header"] + user["data"] + pub_key_message["header"] + pub_key_message["data"])
+                    elif (client != notif_sock) & (message["data"] != b'pub_key'):  # regular messages
+                        client.send(user["header"] + user["data"] + message["header"] + message["data"])
 
         for notif_sock in exception_sockets:
             sockets_list.remove(notif_sock)
