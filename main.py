@@ -1,7 +1,6 @@
 import socket
-import select  # OS level IO capability, works with win, linux, ios
+import select
 from random import getrandbits
-from random import randint
 from time import sleep
 
 HEADER_LENGTH = 10
@@ -9,15 +8,15 @@ IP = '127.0.0.1'
 PORT = 5555
 UTF_8 = 'utf-8'
 ASYMMETRIC_ENCRYPTION_HEADER = 'DIFFIEHELLMAN'
-P: int = 0  # p has to be prime nuber = 23
-G: int = 0  # g has to be primitive rood modulo g =5
+P: int = 0  # p has to be prime nuber (i.e. 23)
+G: int = 0  # g has to be primitive rood modulo g (i.e. 5)
 
 
 def make_and_define_p_and_g():
     global P
     P = get_random_prime()
     global G
-    G = primitive_root(int(P))  # g has to be primitive rood modulo p =5
+    G = primitive_root(int(P))
     print(f"P: {P}, G: {G}")
 
 
@@ -74,9 +73,8 @@ def receive_message(client_socket):
         if not len(message_header):
             return False
         message_length = int(message_header.decode('utf-8').strip())
-        # print(f' message_length {message_length}')
         return {"header": message_header,
-                'data': client_socket.recv(message_length)}  # Kaj ako netko posalje jako veliku poruku?
+                'data': client_socket.recv(message_length)}
     except:
         return False
 
@@ -84,7 +82,7 @@ def receive_message(client_socket):
 if __name__ == '__main__':
 
     make_and_define_p_and_g()
-    # AF Address Family INET internet
+
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
