@@ -8,12 +8,22 @@ IP = '127.0.0.1'
 PORT = 5555
 UTF_8 = 'utf-8'
 ASYMMETRIC_ENCRYPTION_HEADER = 'DIFFIEHELLMAN'
-P: int = 0  # p has to be prime nuber (i.e. 23)
-G: int = 0  # g has to be primitive rood modulo g (i.e. 5)
+
+"""
+- P has to be prime nuber (i.e. 23) To ensure security, it is recommended that P is at least 2048 bits long:
+https://en.wikipedia.org/wiki/Logjam_(computer_security)
+=> TLDR: Most of the servers used to use precomputed p and g. And they reused them very often.
+
+- G has to be primitive rood modulo p (i.e. 5)
+"""
+P: int = 0
+G: int = 0
 
 
 def make_and_define_p_and_g():
     global P
+    # Even this is not secure enough: *** !!! ***
+    #P = 523276359721148582961119532877840338939233252222644577622862528354240605322418224344246000862830949201226342187945243756720766842987724933927624612802819
     P = get_random_prime()
     global G
     G = primitive_root(int(P))
@@ -32,17 +42,22 @@ def is_prime(num):
 
 def get_random_prime():
     while True:
-        n = getrandbits(18)
+        """
+         22 bits are the most I can get in reasonable amount of 
+         time, at least with current method of checking if number is prime
+         """
+        n = getrandbits(20)
         if is_prime(n):
             return n
 
 
 def primitive_root(modulo):
-    required_set = set(num for num in range(1, modulo))
+    required_set = set(num for num in range(1, modulo)) # [1, (modulo-1)]
     for co_prime_of_modulo in range(1, modulo):
         actual_set = set()
         for power in range(1, modulo):
-            actual_set.add(pow(co_prime_of_modulo, power, modulo))
+            #Here set is used so that only unique numbers should fall in
+            actual_set.add(pow(co_prime_of_modulo, power, modulo)) # co_prime_of_modulo ^ power % modulo
         if required_set == actual_set:
             return co_prime_of_modulo
         else:
@@ -87,9 +102,9 @@ if __name__ == '__main__':
     server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
     server_socket.bind((IP, PORT))
-    server_socket.listen(100)  # listens for 100 active connections.
+    server_socket.listen(10)
 
-    sockets_list = [server_socket]  # Later, here come the clients
+    sockets_list = [server_socket]
 
     clients = {}
 
@@ -109,11 +124,11 @@ if __name__ == '__main__':
                     f' {client_address[0]}:{client_address[1]} '
                     f'from {user["data"].decode(UTF_8)}')
                 send_p_and_g(client_socket)
-                if len(clients) == 2:  # Ako su dva covjeka u razgovoru
+                if len(clients) == 2:  # Two people connected
                     for c in clients:
                         sleep(1)
                         print(f'Send pub_key_exchange flag to client {clients[c]["data"].decode(UTF_8)}')
-                        c.send(b'16        pub_key_exchange')  # 10 mjesta je header za data '16' + 8x ' '
+                        c.send(b'16        pub_key_exchange')  # 10 places in header
 
 
             else:
